@@ -1,0 +1,61 @@
+import requests
+import pandas as pd
+from datetime import datetime
+import os
+import io
+from openpyxl import load_workbook  # Ensure openpyxl is imported for handling .xlsx files
+
+def pull_desired_files_and_create_master_df(dates):
+    # Base URL for downloading files
+    base_url = 
+    
+    # Initialize master file
+    master_df = pd.DataFrame()
+    
+    # Loop through data
+    for date in dates:      
+        desired_url = base_url + date + '.xlsx'
+        r = requests.get(desired_url)  
+        
+        # Load using openpyxl
+        workbook = load_workbook(io.BytesIO(r.content), data_only=True)
+        worksheet = workbook.active  # Use the first sheet
+        
+        # Build a DataFrame
+        data = worksheet.values
+        columns = next(data)  # First row as header
+        df = pd.DataFrame(data, columns=columns)
+
+        # Process date format in the 'ReportDate' column
+        if 'ReportDate' in df.columns:
+            df['ReportDate'] = pd.to_datetime(df['ReportDate'], errors='coerce').dt.strftime("%m/%Y")
+        
+        # Append to the master dataframe
+        master_df = pd.concat([master_df, df], ignore_index=True)
+        
+    # Return the final master DataFrame
+    return master_df
+
+def main():
+    # Define the folder path to save files
+    newpath = 
+    
+    # Create folder for housing files
+    if not os.path.exists(newpath):
+        os.makedirs(newpath)
+        
+    # Dates to process
+    dates = ['2016_12']
+    
+    # Generate the master DataFrame
+    master_dataframe_production = pull_desired_files_and_create_master_df(dates)
+    
+    # Convert data type 'ReportDate' to datetime
+    if 'ReportDate' in master_dataframe_production.columns:
+        master_dataframe_production['ReportDate'] = pd.to_datetime(master_dataframe_production['ReportDate'], errors='coerce')
+    
+    # Save the master DataFrame to a CSV file
+    master_dataframe_production.to_csv(f"{newpath}master_dataframe_production.csv", index=False)
+
+if __name__ == "__main__":
+    main()
