@@ -1,61 +1,140 @@
 import requests
 import pandas as pd
-from datetime import datetime
 import os
-import io
-from openpyxl import load_workbook  # Ensure openpyxl is imported for handling .xlsx files
 
-def pull_desired_files_and_create_master_df(dates):
-    # Base URL for downloading files
-    base_url = 
-    
+def pull_desired_files_and_create_master_df(years):
+
     # Initialize master file
     master_df = pd.DataFrame()
     
     # Loop through data
-    for date in dates:      
-        desired_url = base_url + date + '.xlsx'
-        r = requests.get(desired_url)  
-        
-        # Load using openpyxl
-        workbook = load_workbook(io.BytesIO(r.content), data_only=True)
-        worksheet = workbook.active  # Use the first sheet
-        
-        # Build a DataFrame
-        data = worksheet.values
-        columns = next(data)  # First row as header
-        df = pd.DataFrame(data, columns=columns)
+    for year in years:      
+        url = f'https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/{year}.xlsx
 
-        # Process date format in the 'ReportDate' column
-        if 'ReportDate' in df.columns:
-            df['ReportDate'] = pd.to_datetime(df['ReportDate'], errors='coerce').dt.strftime("%m/%Y")
-        
-        # Append to the master dataframe
-        master_df = pd.concat([master_df, df], ignore_index=True)
-        
-    # Return the final master DataFrame
+        response = requests.get(url, verify = False) # Disable SSL verification  
+        if response.status_code == 200:
+            df = pd.read_excel(response.content)
+            master_df = pd.concat([master_df, df], ignore_index+True)
+        else:
+            print(f"Failed to download {year}.xlsx")
     return master_df
 
 def main():
     # Define the folder path to save files
-    newpath = 
+    newpath = selected_folder_path
     
     # Create folder for housing files
     if not os.path.exists(newpath):
         os.makedirs(newpath)
         
-    # Dates to process
-    dates = ['2016_12']
+    # years to process
+    years = ['dly1012d_2024','dly1012d_2023'] # 'dly1012d_2022', 'dly1012d_2021'
     
     # Generate the master DataFrame
-    master_dataframe_production = pull_desired_files_and_create_master_df(dates)
+    master_dataframe_injection = pull_desired_files_and_create_master_df(years)
     
-    # Convert data type 'ReportDate' to datetime
-    if 'ReportDate' in master_dataframe_production.columns:
-        master_dataframe_production['ReportDate'] = pd.to_datetime(master_dataframe_production['ReportDate'], errors='coerce')
+    # Convert data type 'Report_Date' to datetime
+    if 'Report_Date' in master_dataframe_injection.columns:
+        master_dataframe_injection['Report_Date'] = pd.to_datetime(master_dataframe_injection['Report_Date'], errors='coerce')
     
-    # Save the master DataFrame to a CSV file
-    master_dataframe_production.to_csv(f"{newpath}master_dataframe_production.csv", index=False)
+# create a dictionary of County Numbers and Names
+    county_dict = {
+    '001': 'ADAIR',
+    '003': 'ALFALFA',
+    '005': 'ATOKA',
+    '007': 'BEAVER',
+    '009': 'BECKHAM',
+    '011': 'BLAINE',
+    '013': 'BRYAN',
+    '015': 'CADDO',
+    '017': 'CANADIAN',
+    '019': 'CARTER',
+    '021': 'CHEROKEE',
+    '023': 'CHOCTAW',
+    '025': 'CIMARRON',
+    '027': 'CLEVELAND',
+    '029': 'COAL',
+    '031': 'COMANCHE',
+    '033': 'COTTON',
+    '035': 'CRAIG',
+    '037': 'CREEK',
+    '039': 'CUSTER',
+    '041': 'DELAWARE',
+    '043': 'DEWEY',
+    '045': 'ELLIS',
+    '047': 'GARFIELD',
+    '049': 'GARVIN',
+    '051': 'GRADY',
+    '053': 'GRANT',
+    '055': 'GREER',
+    '057': 'HARMON',
+    '059': 'HARPER',
+    '061': 'HASKELL',
+    '063': 'HUGHES',
+    '065': 'JACKSON',
+    '067': 'JEFFERSON',
+    '069': 'JOHNSTON',
+    '071': 'KAY',
+    '073': 'KINGFISHER',
+    '075': 'KIOWA',
+    '077': 'LATIMER',
+    '079': 'LE FLORE',
+    '081': 'LINCOLN',
+    '083': 'LOGAN',
+    '085': 'LOVE',
+    '087': 'MCCLAIN',
+    '089': 'MCCURTAIN',
+    '091': 'MCINTOSH',
+    '093': 'MAJOR',
+    '095': 'MARSHALL',
+    '097': 'MAYES',
+    '099': 'MURRAY',
+    '101': 'MUSKOGEE',
+    '103': 'NOBLE',
+    '105': 'NOWATA',
+    '107': 'OKFUSKEE',
+    '109': 'OKLAHOMA',
+    '111': 'OKMULGEE',
+    '113': 'OSAGE',
+    '115': 'OTTAWA',
+    '117': 'PAWNEE',
+    '119': 'PAYNE',
+    '121': 'PITTSBURG',
+    '123': 'PONTOTOC',
+    '125': 'POTTAWATOMIE',
+    '127': 'PUSHMATAHA',
+    '129': 'ROGER MILLS',
+    '131': 'ROGERS',
+    '133': 'SEMINOLE',
+    '135': 'SEQUOYAH',
+    '137': 'STEPHENS',
+    '139': 'TEXAS',
+    '141': 'TILLMAN',
+    '143': 'TULSA',
+    '145': 'WAGONER',
+    '147': 'WASHINGTON',
+    '149': 'WASHITA',
+    '151': 'WOODS',
+    '153': 'WOODWARD'
+}
 
+    # convert API to string
+    master_dataframe_injection['API'] = master_dataframe_injection['API'].astype(str)
+
+    # Lookup index 2:4 in the API string of df to get the 3 digit county code
+    master_dataframe_injection['County_Code'] = master_dataframe_injection['API'].str[2:5]
+
+    # use dictionary to assign County
+    master_dataframe_injection['County_Name'] = master_dataframe_injection['County_Code'].map(county_dict)
+
+    # Save the master DataFrame to a CSV file
+    master_dataframe_injection.to_csv(f"{newpath}master_dataframe_injection.csv", index=False)
+
+    # Save the master Dataframe as df
+    df = master_dataframe_injection
 if __name__ == "__main__":
     main()
+
+# use pygwalker to view the data like Tableau
+import pygwalker
+pygwalker.walk(df)
