@@ -3,32 +3,33 @@ import pandas as pd
 import os
 
 def pull_desired_files_and_create_master_df(years):
-
     # Initialize master file
     master_df = pd.DataFrame()
     
     # Loop through data
     for year in years:      
-        url = f'https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/{year}.xlsx
+        url = f'https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/{year}.xlsx'
 
-        response = requests.get(url, verify = False) # Disable SSL verification  
+        response = requests.get(url, verify=False)  # Disable SSL verification
         if response.status_code == 200:
             df = pd.read_excel(response.content)
-            master_df = pd.concat([master_df, df], ignore_index+True)
+            master_df = pd.concat([master_df, df], ignore_index=True)
         else:
             print(f"Failed to download {year}.xlsx")
-    return master_df
+    
+    return master_df  # Ensure this is indented properly to be part of the function
+
 
 def main():
     # Define the folder path to save files
-    newpath = selected_folder_path
+    newpath = select_folder_path
     
     # Create folder for housing files
     if not os.path.exists(newpath):
         os.makedirs(newpath)
         
     # years to process
-    years = ['dly1012d_2024','dly1012d_2023'] # 'dly1012d_2022', 'dly1012d_2021'
+    years = ['dly1012d_2024'] # 'dly1012d_2022', 'dly1012d_2021','dly1012d_2023'
     
     # Generate the master DataFrame
     master_dataframe_injection = pull_desired_files_and_create_master_df(years)
@@ -37,7 +38,12 @@ def main():
     if 'Report_Date' in master_dataframe_injection.columns:
         master_dataframe_injection['Report_Date'] = pd.to_datetime(master_dataframe_injection['Report_Date'], errors='coerce')
     
-# create a dictionary of County Numbers and Names
+      # Extract year, month, and day from 'Report_Date'
+        master_dataframe_injection['Year'] = master_dataframe_injection['Report_Date'].dt.year
+        master_dataframe_injection['Month'] = master_dataframe_injection['Report_Date'].dt.month
+        master_dataframe_injection['Day'] = master_dataframe_injection['Report_Date'].dt.day
+        
+    # create a dictionary of County Numbers and Names
     county_dict = {
     '001': 'ADAIR',
     '003': 'ALFALFA',
@@ -115,8 +121,7 @@ def main():
     '147': 'WASHINGTON',
     '149': 'WASHITA',
     '151': 'WOODS',
-    '153': 'WOODWARD'
-}
+    '153': 'WOODWARD'}
 
     # convert API to string
     master_dataframe_injection['API'] = master_dataframe_injection['API'].astype(str)
@@ -129,12 +134,23 @@ def main():
 
     # Save the master DataFrame to a CSV file
     master_dataframe_injection.to_csv(f"{newpath}master_dataframe_injection.csv", index=False)
-
-    # Save the master Dataframe as df
-    df = master_dataframe_injection
+    
 if __name__ == "__main__":
     main()
+
+# Define the path to the CSV file
+csv_path = 'master_dataframe_injection.csv'
+
+# Import the CSV into a DataFrame
+df = pd.read_csv(csv_path)
+
+# Display the first few rows of the imported DataFrame
+print(df.head())
+
+# Optional: Check the structure of the DataFrame
+print(df.info())
 
 # use pygwalker to view the data like Tableau
 import pygwalker
 pygwalker.walk(df)
+
